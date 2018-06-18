@@ -1,81 +1,90 @@
-/*****************
- * This is the main program of Color routing
- * ***************/
 #include<fstream>
 #include<ostream>
 #include<map>
 #include<vector>
 #include<string>
-#include<iomanip>
-#include<utility>
 #include<sstream>
+#include<utility>
+#include<algorithm>
+#include"util.h"
+
+
 using namespace std;
 
-// (x,y) coordinates
-typedef pair<int,int> Key;
-// CorMap stores the start coordinate of the net
-typedef map <int, vector<int>* > CorMap;
-// NetMap stores the length of the net from the starting coordinate
-typedef map<Key, int > NetMap;
-// store the current trace points
-typedef vector<vector<int> > NetPoints;
-
 class Connect {
-    // data structure to store net and blockage
-    CorMap x_map, y_map;
-    NetMap net_map;
-
-    // net to connect
-    vector<vector<int> > nets;
-    vector<char> net_critical;
-
-    // the pins to connect
-    vector<Key> pins;
-    vector<int> pinLayer;
+    
 
     public:
-
     // constructor
     Connect(fstream* pin, fstream* net, fstream* block){
         readInFile(pin,net,block);
+    }
+    ~Connect(){
+        for(CorMap::iterator it = x_map.begin(); it != x_map.end(); ++it) {
+            delete it->second;
+        }
+        for(CorMap::iterator it = y_map.begin(); it != y_map.end(); ++it) {
+            delete it->second;
+        }
     }
 
     // add the net (start and end point) to netmap for future lookup check.
     void addNet(int layer,int x1,int y1,int x2,int y2){
         // add to lookup map and then add to length map
+        Pin pin;
         if (x1 == x2){
             //add to x_map
             if(y1 < y2){
-                addMap(x1,y1,&x_map);
-                net_map[Key(x1,y1)]=y2-y1;
+                pin.push_back(x1);
+                pin.push_back(y1);
+                pin.push_back(layer);
+                //{x1,y1,layer};
+                addMap(Start(x1,layer),y1,&x_map);
+                net_map[pin]=y2-y1;
             }else{
-                addMap(x1,y2,&x_map);
-                net_map[Key(x1,y2)]=y1-y2;
+                pin.push_back(x1);
+                pin.push_back(y2);
+                pin.push_back(layer);
+                addMap(Start(x1,layer),y2,&x_map);
+                net_map[pin]=y1-y2;
             }
         }else{
             //add to y_map
             if(x1 < x2){
-                addMap(y1,x1,&y_map);
-                net_map[Key(x1,y1)]= x2-x1;
+                pin.push_back(x1);
+                pin.push_back(y1);
+                pin.push_back(layer);
+                // int pin[]={x1,y1,layer};
+                addMap(Start(y1,layer),x1,&y_map);
+                net_map[pin]= x2-x1;
             }else{
-                addMap(y1,x2,&y_map);
-                net_map[Key(x2,y1)]= x1-x2;
+                pin.push_back(x2);
+                pin.push_back(y1);
+                pin.push_back(layer);
+                // int pin[]={x2,y1,layer};
+                addMap(Start(y1,layer),x2,&y_map);
+                net_map[pin]= x1-x2;
             }
         }
     }
 
     //check wether the net had crossed
-    bool checkCross(int x,int y){
+    bool checkCross(int x,int y,int layer){
         // if cross, return true
         // check x_map first
-        if (x_map.find(x) != x_map.end()){
-            vector<int>* y_values = x_map[x];
+        Pin pin;
+        if (x_map.find(Start(x,layer)) != x_map.end()){
+            vector<int>* y_values = x_map[Start(x,layer)];
             if (y_values->size() != 0){
                 for (int i=y_values->size()-1;i>=0;i--){
                     int y_v = (*y_values)[i];
                     if( y >= y_v){
                         // check and exist
-                        if(y <= (y_v+net_map[Key(x,y_v)])){
+                        pin.push_back(x);
+                        pin.push_back(y_v);
+                        pin.push_back(layer);
+                        // int pin[]={x,y_v,layer};
+                        if(y <= (y_v+net_map[pin])){
                             return true;
                         }
                         break;
@@ -84,14 +93,18 @@ class Connect {
             }
         }
         // // check y_map
-        if (y_map.find(y) != y_map.end()){
-            vector<int>* x_values = y_map[y];
+        if (y_map.find(Start(y,layer)) != y_map.end()){
+            vector<int>* x_values = y_map[Start(y,layer)];
             if (x_values->size() != 0){
                 for (int i=x_values->size()-1;i>=0;i--){
                     int x_v = (*x_values)[i];
                     if( x >= x_v){
                         // check and exist
-                        if(x <= (x_v+net_map[Key(x_v,y)])){
+                        pin.push_back(x_v);
+                        pin.push_back(y);
+                        pin.push_back(layer);
+                        // int pin[]={x_v,y,layer};
+                        if(x <= (x_v+net_map[pin])){
                             return true;
                         }
                         break;
@@ -102,7 +115,26 @@ class Connect {
         return false;
     }
 
+    vector<vector<Pin> >* criticalNets(){
+        return &criNets;
+    }
+
+    vector<vector<Pin> >* nonCriticalNets(){
+        return &noncriNets;
+    }
+
     private:
+    // data structure to store net and blockage
+    CorMap x_map, y_map;
+    NetMap net_map;
+
+    // net to connect
+    vector<vector<Pin > > criNets;
+    vector<vector<Pin > > noncriNets;
+
+    // the pins to connect
+    vector<Pin > pins;
+
 
     // add blockage to the map
     // (a,b) represent down-left vertex and (c,d) represent up-right vertex
@@ -127,7 +159,7 @@ class Connect {
     * x_map means the net is parallel with y axis
     * y_map means the net is parallel with x axis
     **********/
-    void addMap(int key,int value,CorMap* map){
+    void addMap(Start key, int value, CorMap* map){
         // can not find anything
         if (map->find(key) == map->end()){
             vector<int>* newValues = new vector<int>;
@@ -146,8 +178,12 @@ class Connect {
         int num,layer;
         double x, y;
         while( (*pin)>>num>>layer>>x>>y ){
-            pinLayer.push_back(layer);
-            pins.push_back(Key(doubleToInt(x),doubleToInt(y)));
+            Pin onepin;
+            //  = {doubleToInt(x),doubleToInt(y),layer};
+            onepin.push_back(doubleToInt(x));
+            onepin.push_back(doubleToInt(y));
+            onepin.push_back(layer);
+            pins.push_back(onepin);
         }
         // read in blockage
         double x1,y1,x2,y2;
@@ -159,34 +195,20 @@ class Connect {
         // read in nets
         string line;
         while (getline(*net, line)){
-            vector<int> net;
+            vector<Pin> net;
             istringstream ss(line);
-            double num;
+            int num;
             int i=0;
             while (ss >> num){
                 if (i != 0){
-                    net.push_back(doubleToInt(num));
+                    net.push_back(pins[num]);
                 }
             }
-            net_critical.push_back(line.back());
-            nets.push_back(net);
+            if(line.back() == 'Y'){
+                criNets.push_back(net);
+            }else{
+                noncriNets.push_back(net);
+            }
         }
     }
-
-
 };
-
-int main (int argc, char* argv[]){
-    // read in the parameters
-    fstream pin,net,blockage;
-    pin.open(argv[1],fstream::in);
-    net.open(argv[2],fstream::in);
-    blockage.open(argv[3],fstream::in);
-
-    fstream out;
-    out.open(argv[4],fstream::out);
-
-    // initialize the connecting class
-    Connect connect(&pin,&net,&blockage);
-
-}
