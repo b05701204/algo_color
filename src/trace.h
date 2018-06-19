@@ -1,145 +1,116 @@
+#include<iostream>
 #include "util.h"
-
-
+#include "nets.h"
 using namespace std;
 
+#ifndef TRACE
+#define TRACE
 
+class Trace
+{
+  public:
+    // constructor
+    Trace(vector<Pin> *netlist) {
+        int pinNum = netlist->size();
+        for (int j = 0; j < pinNum; j++)
+            disMap[(*netlist)[j]]= -1;
+    }
+    ~Trace() {}
 
-class Trace{
-    public:
-		// constructor
-      Trace(){} 
-		~Trace(){}
+    void traceBFS(int x1, int y1, int z1, Nets* nets,vector<vector<int> >* NetPoints)
+    {
+        vector<vector<int> > path; //record points for output
+        path.push_back(createPin(x1, y1, z1));
 
-		void traceBFS(int x1, int y1, int z1){
-			vector<vector<int> > path;//record points for output
-			vector<int> u;
-			path.push_back(u);
-			path[path.size() - 1].push_back(x1);
-			path[path.size() - 1].push_back(y1);
-			path[path.size() - 1].push_back(z1);
-		
-		
-			while(BFSDis[pinCoordinate(x1, y1, z1)] != 0)
-			{
-				if(z1 == 1 || z1 == 3)//only horizontal
-				{
-					if(BFSDis.find(pinCoordinate(x1 - 1, y1, z1)) != BFSDis.end() && (BFSDis[pinCoordinate(x1 - 1, y1, z1)] == BFSDis[pinCoordinate(x1, y1, z1)] - 1))//left
-					{
-						vector<int> v = pinCoordinate(x1, y1, z1);
-						NetPoints.push_back(v);
-						x1 = x1 - 1;
-					}
-					else if(BFSDis.find(pinCoordinate(x1 + 1, y1, z1)) != BFSDis.end() && (BFSDis[pinCoordinate(x1 + 1, y1, z1)] == BFSDis[pinCoordinate(x1, y1, z1)] - 1))//right 
-					{
-						vector<int> v = pinCoordinate(x1, y1, z1);
-						NetPoints.push_back(v);
-						x1 = x1 + 1;
-					}
-					else//go to other layers
-					{
-						if(x1 != path[path.size() - 1][0] && y1 != path[path.size() - 1][1])//only record the first jump
-						{
-							vector<int> u = pinCoordinate(x1, y1, z1);
-							path.push_back(u);
-						}
-					
-						if(z1 == 4)
-						{
-							z1 = 1;
-						}
-						else
-						{
-							z1 = z1 + 1;
-						}
-					}
-				}
-				else if(z1 == 2 || z1 == 4)//only vertical
-				{
-					if(BFSDis.find(pinCoordinate(x1, y1 - 1, z1)) != BFSDis.end() && (BFSDis[pinCoordinate(x1, y1 - 1, z1)] == BFSDis[pinCoordinate(x1, y1, z1)] - 1))//down 
-					{
-						vector<int> v;
-						NetPoints.push_back(v);
-						NetPoints[NetPoints.size() - 1].push_back(x1);
-						NetPoints[NetPoints.size() - 1].push_back(y1);
-						NetPoints[NetPoints.size() - 1].push_back(z1);
-						y1 = y1 - 1;
-					}
-					else if(BFSDis.find(pinCoordinate(x1, y1 + 1, z1)) != BFSDis.end() && (BFSDis[pinCoordinate(x1, y1 + 1, z1)] == BFSDis[pinCoordinate(x1, y1, z1)] - 1))//up 
-					{
-						vector<int> v;
-						NetPoints.push_back(v);
-						NetPoints[NetPoints.size() - 1].push_back(x1);
-						NetPoints[NetPoints.size() - 1].push_back(y1);
-						NetPoints[NetPoints.size() - 1].push_back(z1);
-						y1 = y1 + 1;
-					}
-					else//go to other layers
-					{
-						if(x1 != path[path.size() - 1][0] && y1 != path[path.size() - 1][1])//only record the first jump
-						{
-							vector<int> u;
-							path.push_back(u);
-							path[path.size() - 1].push_back(x1);
-							path[path.size() - 1].push_back(y1);
-							path[path.size() - 1].push_back(z1);
-						}
-					
-						if(z1 == 4)
-						{
-							z1 = 1;
-						}
-						else
-						{
-							z1 = z1 + 1;
-						}
-					}
-				}			
-			}
-			vector<int> u2;
-			path.push_back(u2);
-			path[path.size() - 1].push_back(x1);
-			path[path.size() - 1].push_back(y1);
-			path[path.size() - 1].push_back(z1);
-			vector<int> v;
-			NetPoints.push_back(v);
-			NetPoints[NetPoints.size() - 1].push_back(x1);
-			NetPoints[NetPoints.size() - 1].push_back(y1);
-			NetPoints[NetPoints.size() - 1].push_back(z1);
-		
-			// add the net (start and end point) to netmap for future lookup check.
-			for(int i = path.size()-1; i >= 1; i--)
-			{
-				addNet(path[i][2],path[i][0], path[i][1], path[i - 1][0], path[i - 1][1]);
-			}
-		
-			//output path points(unfinished)
-		
-			path.clear();
-		}
+        while (disMap[createPin(x1, y1, z1)] != 0)
+        {
+            if (z1 == 1 || z1 == 3) //only horizontal
+            {
+                if (disMap.find(createPin(x1 - 1, y1, z1)) != disMap.end() && (disMap[createPin(x1 - 1, y1, z1)] == disMap[createPin(x1, y1, z1)] - 1)) //left
+                {
+                    NetPoints->push_back(createPin(x1, y1, z1));
+                    x1 = x1 - 1;
+                }
+                else if (disMap.find(createPin(x1 + 1, y1, z1)) != disMap.end() && (disMap[createPin(x1 + 1, y1, z1)] == disMap[createPin(x1, y1, z1)] - 1)) //right
+                {
+                    NetPoints->push_back(createPin(x1, y1, z1));
+                    x1 = x1 + 1;
+                }
+                else //go to other layers
+                {
+                    if (x1 != path[path.size() - 1][0] && y1 != path[path.size() - 1][1]) //only record the first jump
+                    {
+                        path.push_back(createPin(x1, y1, z1));
+                    }
+                    if (z1 == 4)
+                    {
+                        z1 = 1;
+                    }
+                    else
+                    {
+                        z1 = z1 + 1;
+                    }
+                }
+            }
+            else if (z1 == 2 || z1 == 4) //only vertical
+            {
+                if (disMap.find(createPin(x1, y1 - 1, z1)) != disMap.end() && (disMap[createPin(x1, y1 - 1, z1)] == disMap[createPin(x1, y1, z1)] - 1)) //down
+                {
+                    NetPoints->push_back(createPin(x1,y1,z1));
+                    y1 = y1 - 1;
+                }
+                else if (disMap.find(createPin(x1, y1 + 1, z1)) != disMap.end() && (disMap[createPin(x1, y1 + 1, z1)] == disMap[createPin(x1, y1, z1)] - 1)) //up
+                {
+                    NetPoints->push_back(createPin(x1,y1,z1));
+                    y1 = y1 + 1;
+                }
+                else //go to other layers
+                {
+                    if (x1 != path[path.size() - 1][0] && y1 != path[path.size() - 1][1]) //only record the first jump
+                    {
+                        path.push_back(createPin(x1,y1,z1));
+                    }
 
-		
-		bool checkExplored(vector<int> u){
-			if (BFSDis.find(u)==BFSDis.end())
-				return false;
-			else return true;
-		}
-	
-		int ManhattanDist(vector<int> x,vector<int> y){
-			int distx,disty;
-			if (x[0]>y[0])
-				distx=(x[0]-y[0]);
-			else distx=(y[0]-x[0]);
-			
-			if (x[1]>y[1])
-				disty=(x[1]-y[1]);
-			else disty=(y[1]-x[1]);
-			
-			return (distx+disty);
-		}
-		
-	private:
-		vector<vector<int> > NetPoints;	//(x,y,layer)
-		map<vector<int>, int> BFSDis; //BFSDis[(x,y,layer)] = dis
-		map<vector<int>, int> ManhattanDis;
+                    if (z1 == 4)
+                    {
+                        z1 = 1;
+                    }
+                    else
+                    {
+                        z1 = z1 + 1;
+                    }
+                }
+            }
+        }
+        path.push_back(createPin(x1,y1,z1));
+        NetPoints->push_back(createPin(x1,y1,z1));
+        // add the net (start and end point) to netmap for future lookup check.
+        for (int i = path.size() - 1; i >= 1; i--)
+        {
+            cout<<"trace back"<<endl;
+            nets->addNet(path[i][2], path[i][0], path[i][1], path[i - 1][0], path[i - 1][1]);
+            cout<<"layer:"<<path[i][2]<<" points: "<<path[i][0]<<" "<<path[i][1]<<" "<< path[i - 1][0]<<" "<< path[i - 1][1]<<" "<<endl;
+        }
+    }
+
+    bool checkExplored(vector<int> u)
+    {
+        if (disMap.find(u) == disMap.end())
+            return false;
+        else
+            return true;
+    }
+
+    void addDis(vector<int> key, int value){
+        disMap[key]=value;
+    }
+
+    int getDis(vector<int> key){
+        return disMap[key];
+    }
+
+  private:
+    map<vector<int>, int> disMap;  //disMap[(x,y,layer)] = dis
 };
+
+#endif

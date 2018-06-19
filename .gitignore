@@ -2,3 +2,9 @@
 a.out
 helper.cpp
 test.cpp
+NVM_CD_FLAGS=
+.vscode/settings.json
+src/.vscode/launch.json
+src/.vscode/settings.json
+src/main.dSYM/Contents/Info.plist
+src/main.dSYM/Contents/Resources/DWARF/main

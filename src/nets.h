@@ -3,6 +3,7 @@
 #include<map>
 #include<vector>
 #include<string>
+#include<iostream>
 #include<sstream>
 #include<utility>
 #include<algorithm>
@@ -11,15 +12,18 @@
 
 using namespace std;
 
-class Connect {
-    
 
+#ifndef NETS
+#define NETS
+
+class Nets {
     public:
     // constructor
-    Connect(fstream* pin, fstream* net, fstream* block){
+    Nets(fstream* pin, fstream* net, fstream* block, fstream* out){
         readInFile(pin,net,block);
+        output = out;
     }
-    ~Connect(){
+    ~Nets(){
         for(CorMap::iterator it = x_map.begin(); it != x_map.end(); ++it) {
             delete it->second;
         }
@@ -28,51 +32,12 @@ class Connect {
         }
     }
 
-    // add the net (start and end point) to netmap for future lookup check.
-    void addNet(int layer,int x1,int y1,int x2,int y2){
-        // add to lookup map and then add to length map
-        Pin pin;
-        if (x1 == x2){
-            //add to x_map
-            if(y1 < y2){
-                pin.push_back(x1);
-                pin.push_back(y1);
-                pin.push_back(layer);
-                //{x1,y1,layer};
-                addMap(Start(x1,layer),y1,&x_map);
-                net_map[pin]=y2-y1;
-            }else{
-                pin.push_back(x1);
-                pin.push_back(y2);
-                pin.push_back(layer);
-                addMap(Start(x1,layer),y2,&x_map);
-                net_map[pin]=y1-y2;
-            }
-        }else{
-            //add to y_map
-            if(x1 < x2){
-                pin.push_back(x1);
-                pin.push_back(y1);
-                pin.push_back(layer);
-                // int pin[]={x1,y1,layer};
-                addMap(Start(y1,layer),x1,&y_map);
-                net_map[pin]= x2-x1;
-            }else{
-                pin.push_back(x2);
-                pin.push_back(y1);
-                pin.push_back(layer);
-                // int pin[]={x2,y1,layer};
-                addMap(Start(y1,layer),x2,&y_map);
-                net_map[pin]= x1-x2;
-            }
-        }
-    }
+    
 
     //check wether the net had crossed
     bool checkCross(int x,int y,int layer){
         // if cross, return true
         // check x_map first
-        Pin pin;
         if (x_map.find(Start(x,layer)) != x_map.end()){
             vector<int>* y_values = x_map[Start(x,layer)];
             if (y_values->size() != 0){
@@ -80,11 +45,7 @@ class Connect {
                     int y_v = (*y_values)[i];
                     if( y >= y_v){
                         // check and exist
-                        pin.push_back(x);
-                        pin.push_back(y_v);
-                        pin.push_back(layer);
-                        // int pin[]={x,y_v,layer};
-                        if(y <= (y_v+net_map[pin])){
+                        if(y <= (y_v+net_map[createPin(x,y_v,layer)])){
                             return true;
                         }
                         break;
@@ -100,11 +61,7 @@ class Connect {
                     int x_v = (*x_values)[i];
                     if( x >= x_v){
                         // check and exist
-                        pin.push_back(x_v);
-                        pin.push_back(y);
-                        pin.push_back(layer);
-                        // int pin[]={x_v,y,layer};
-                        if(x <= (x_v+net_map[pin])){
+                        if(x <= (x_v+net_map[createPin(x_v,y,layer)])){
                             return true;
                         }
                         break;
@@ -114,6 +71,17 @@ class Connect {
         }
         return false;
     }
+
+    void addOutput(int layer,int x1,int y1,int x2,int y2){
+        // default color
+        int color=1;
+        // coloring simple rule: if near one have net, change color
+        addNet(layer,x1,y1,x2,y2,);
+        // output to file
+
+    }
+
+    
 
     vector<vector<Pin> >* criticalNets(){
         return &criNets;
@@ -127,6 +95,9 @@ class Connect {
     // data structure to store net and blockage
     CorMap x_map, y_map;
     NetMap net_map;
+    NetMap color_map;
+
+    fstream * output;
 
     // net to connect
     vector<vector<Pin > > criNets;
@@ -135,15 +106,50 @@ class Connect {
     // the pins to connect
     vector<Pin > pins;
 
+    // check near color, if exist, change to new color, if not return 0
+    int checkNear(int layer,int x1,int y1,int x2,int y2,int color){
+        // check the line parallel with x corr
+
+    }
+
+    // add the net (start and end point) to netmap for future lookup check.
+    void addNet(int layer,int x1,int y1,int x2,int y2,int color){
+        // add to lookup map and then add to length map
+        if (x1 == x2){
+            //add to x_map
+            if(y1 < y2){
+                //{x1,y1,layer};
+                addMap(Start(x1,layer),y1,&x_map);
+                net_map[createPin(x1,y1,layer)]=y2-y1;
+                color_map[createPin(x1,y1,layer)]=color;
+            }else{
+                addMap(Start(x1,layer),y2,&x_map);
+                net_map[createPin(x1,y2,layer)]=y1-y2;
+                color_map[createPin(x1,y2,layer)]=color;
+            }
+        }else{
+            //add to y_map
+            if(x1 < x2){
+                addMap(Start(y1,layer),x1,&y_map);
+                net_map[createPin(x1,y1,layer)]= x2-x1;
+                color_map[createPin(x1,y1,layer)]=color;
+            }else{
+                // int pin[]={x2,y1,layer};
+                addMap(Start(y1,layer),x2,&y_map);
+                net_map[createPin(x2,y1,layer)]= x1-x2;
+                color_map[createPin(x2,y1,layer)]=color;
+            }
+        }
+    }
 
     // add blockage to the map
     // (a,b) represent down-left vertex and (c,d) represent up-right vertex
     void addBlock(int a,int b,int c,int d){
         for (int i=0;i<4;i++){
-            addNet(i,a,b,c,d);
-            addNet(i,a,d,a,b);
-            addNet(i,a,d,c,d);
-            addNet(i,c,d,c,b);
+            addNet(i,a,b,c,d,0);
+            addNet(i,a,d,a,b,0);
+            addNet(i,a,d,c,d,0);
+            addNet(i,c,d,c,b,0);
         }
     }
 
@@ -183,6 +189,8 @@ class Connect {
             onepin.push_back(doubleToInt(x));
             onepin.push_back(doubleToInt(y));
             onepin.push_back(layer);
+            cout<<"pin "<<num<<" :";
+            cout<<onepin[0]<<onepin[1]<<onepin[2]<< endl;
             pins.push_back(onepin);
         }
         // read in blockage
@@ -193,6 +201,7 @@ class Connect {
             );
         }
         // read in nets
+        cout<<"net number"<<endl;
         string line;
         while (getline(*net, line)){
             vector<Pin> net;
@@ -201,9 +210,14 @@ class Connect {
             int i=0;
             while (ss >> num){
                 if (i != 0){
-                    net.push_back(pins[num]);
+                    cout<<num<<" : ";
+                    cout<<pins[num-1][0]<<" "<<pins[num-1][1]<<" "<<pins[num-1][2]<<" "<<endl;
+                    net.push_back(pins[num-1]);
+                    
                 }
+                i++;
             }
+            cout<<endl;
             if(line.back() == 'Y'){
                 criNets.push_back(net);
             }else{
@@ -212,3 +226,5 @@ class Connect {
         }
     }
 };
+
+#endif

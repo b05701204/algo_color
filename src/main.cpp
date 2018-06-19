@@ -11,16 +11,16 @@
 using namespace std;
 
   // Perform routing for all netlists
-void NetRouting(Connect *connect){
+void NetRouting(Nets* nets){
 	//routing for critical nets
-	vector<vector<Pin> >* crticalNets = connect->criticalNets();
+	vector<vector<Pin> >* crticalNets = nets->criticalNets();
 	for (int i=0;i<crticalNets->size();i++){
-		BFSRouting(&(*crticalNets)[i]);
+		BFSRouting(&(*crticalNets)[i],nets);
 	}
 	//routing for non-critical nets
-	vector<vector<Pin> >* nonCriticalNets=connect->nonCriticalNets();
-	for (int j=0;j<nonCriticalNets()->size();j++){
-		BFSRouting(&(*nonCriticalNets)[i]);
+	vector<vector<Pin> >* nonCriticalNets=nets->nonCriticalNets();
+	for (int j=0;j<nonCriticalNets->size();j++){
+		BFSRouting(&(*nonCriticalNets)[j],nets);
 	}
 }
 
@@ -32,10 +32,14 @@ int main (int argc, char* argv[]){
     net.open(argv[2],fstream::in);
     blockage.open(argv[3],fstream::in);
 
-    // fstream out;
-    // out.open(argv[4],fstream::out);
+    fstream out;
+    out.open(argv[4],fstream::out);
 
     // initialize the connecting class
-    Connect connect(&pin,&net,&blockage);
+    Nets nets(&pin,&net,&blockage,&out);
+
+    // start routing
+    NetRouting(&nets);
+
 
 }
