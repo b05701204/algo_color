@@ -88,7 +88,7 @@ class Trace
         for (int i = path.size() - 1; i >= 1; i--)
         {
             cout<<"trace back"<<endl;
-            nets->addNet(path[i][2], path[i][0], path[i][1], path[i - 1][0], path[i - 1][1]);
+            nets->addOutput(path[i][2], path[i][0], path[i][1], path[i - 1][0], path[i - 1][1]);
             cout<<"layer:"<<path[i][2]<<" points: "<<path[i][0]<<" "<<path[i][1]<<" "<< path[i - 1][0]<<" "<< path[i - 1][1]<<" "<<endl;
         }
     }

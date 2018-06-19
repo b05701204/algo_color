@@ -19,10 +19,15 @@ using namespace std;
 class Nets {
     public:
     // constructor
+    Nets(fstream* pin, fstream* net, fstream* block){
+        readInFile(pin,net,block);
+    }
+
     Nets(fstream* pin, fstream* net, fstream* block, fstream* out){
         readInFile(pin,net,block);
         output = out;
     }
+
     ~Nets(){
         for(CorMap::iterator it = x_map.begin(); it != x_map.end(); ++it) {
             delete it->second;
@@ -76,12 +81,11 @@ class Nets {
         // default color
         int color=1;
         // coloring simple rule: if near one have net, change color
-        addNet(layer,x1,y1,x2,y2,);
+        addNet(layer,x1,y1,x2,y2,0);
         // output to file
 
     }
 
-    
 
     vector<vector<Pin> >* criticalNets(){
         return &criNets;
